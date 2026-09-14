@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model Event {
+  id             String   @id @default(cuid())
+  name           String
+  type           String   // 'CLASS' or 'MEETING'
+  date           String?  // 'YYYY-MM-DD' format for one-time events
+  dayOfWeek      Int?     // 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat for recurring
+  startTime      String   // 'HH:mm' 24-hour format
+  endTime        String   // 'HH:mm' 24-hour format
+  room           String   // 'SEMINAR_1' or 'SEMINAR_2'
+  isRecurring    Boolean  @default(false)
+  status         String   @default("CONFIRMED")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model BookingRequest {
+  id            String   @id @default(cuid())
+  name          String
+  requestedDate String   // 'YYYY-MM-DD' format
+  startTime     String   // 'HH:mm' 24-hour format
+  endTime       String   // 'HH:mm' 24-hour format
+  status        String   @default("PENDING") // PENDING, SCHEDULED, CONFLICT, CANCELLED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
