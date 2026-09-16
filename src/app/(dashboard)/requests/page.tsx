@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { bookEvent, checkRoomAvailability } from '@/lib/actions';
 import { formatTime12h } from '@/lib/time';
 
+export const dynamic = 'force-dynamic';
+
 export default async function RequestsPage() {
   const requests = await prisma.bookingRequest.findMany({
     orderBy: { createdAt: 'asc' }
