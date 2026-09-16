@@ -3,16 +3,21 @@ import { format } from 'date-fns';
 import { Clock } from 'lucide-react';
 import { formatTime12h } from '@/lib/time';
 
+import { getKolkataNow } from '@/lib/actions';
+
 export const dynamic = 'force-dynamic';
 
 export default async function RoomsPage() {
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const now = await getKolkataNow();
+  const today = format(now, 'yyyy-MM-dd');
+  const dayOfWeek = now.getDay();
   
   const todayEvents = await prisma.event.findMany({
     where: {
+      status: { not: 'CANCELLED' },
       OR: [
         { date: today },
-        { isRecurring: true, dayOfWeek: new Date().getDay() }
+        { isRecurring: true, dayOfWeek: dayOfWeek }
       ]
     },
     orderBy: { startTime: 'asc' }
@@ -25,7 +30,7 @@ export default async function RoomsPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-white tracking-tight">Seminar Rooms</h2>
-        <p className="text-sm text-gray-400 mt-1">Today's Schedule ({format(new Date(), 'MMMM d, yyyy')})</p>
+        <p className="text-sm text-gray-400 mt-1">Today's Schedule ({format(now, 'MMMM d, yyyy')})</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -48,9 +53,16 @@ export default async function RoomsPage() {
                       {formatTime12h(event.startTime)} - {formatTime12h(event.endTime)}
                     </div>
                   </div>
-                  <span className="px-2 py-1 bg-blue-900/50 text-blue-300 border border-blue-800 text-xs font-bold rounded-md">
-                    {event.type}
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    {event.status === 'PENDING' && (
+                      <span className="px-2 py-0.5 bg-red-900/70 text-red-300 border border-red-700 text-[10px] font-bold rounded-md">
+                        PENDING
+                      </span>
+                    )}
+                    <span className="px-2 py-1 bg-blue-900/50 text-blue-300 border border-blue-800 text-xs font-bold rounded-md">
+                      {event.type}
+                    </span>
+                  </div>
                 </div>
               ))
             )}
@@ -76,9 +88,16 @@ export default async function RoomsPage() {
                       {formatTime12h(event.startTime)} - {formatTime12h(event.endTime)}
                     </div>
                   </div>
-                  <span className="px-2 py-1 bg-emerald-900/50 text-emerald-300 border border-emerald-800 text-xs font-bold rounded-md">
-                    {event.type}
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    {event.status === 'PENDING' && (
+                      <span className="px-2 py-0.5 bg-red-900/70 text-red-300 border border-red-700 text-[10px] font-bold rounded-md">
+                        PENDING
+                      </span>
+                    )}
+                    <span className="px-2 py-1 bg-emerald-900/50 text-emerald-300 border border-emerald-800 text-xs font-bold rounded-md">
+                      {event.type}
+                    </span>
+                  </div>
                 </div>
               ))
             )}

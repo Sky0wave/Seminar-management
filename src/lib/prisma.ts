@@ -2,26 +2,28 @@ import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
 
+import os from 'os';
+
 let databaseUrl = process.env.DATABASE_URL;
 
-if (!databaseUrl || databaseUrl.startsWith('file:')) {
-  // If running in production (Vercel Serverless), copy SQLite db to /tmp so it is fully writable
-  if (process.env.NODE_ENV === 'production') {
-    const tmpDbPath = '/tmp/dev.db';
-    const bundledDbPath = path.join(process.cwd(), 'prisma', 'dev.db');
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 
-    try {
-      if (!fs.existsSync(tmpDbPath) && fs.existsSync(bundledDbPath)) {
-        fs.copyFileSync(bundledDbPath, tmpDbPath);
-      }
-    } catch (e) {
-      console.error('Error copying sqlite db to /tmp:', e);
+if (isServerless && (!databaseUrl || databaseUrl.startsWith('file:'))) {
+  // If running in serverless environment (e.g. Vercel), copy SQLite db to writable tmp directory
+  const tmpDbPath = path.join(os.tmpdir(), 'dev.db');
+  const bundledDbPath = path.join(process.cwd(), 'prisma', 'dev.db');
+
+  try {
+    if (!fs.existsSync(tmpDbPath) && fs.existsSync(bundledDbPath)) {
+      fs.copyFileSync(bundledDbPath, tmpDbPath);
     }
-    databaseUrl = `file:${tmpDbPath}`;
-    process.env.DATABASE_URL = databaseUrl;
-  } else {
-    databaseUrl = process.env.DATABASE_URL || 'file:./dev.db';
+  } catch (e) {
+    console.error('Error copying sqlite db to tmp:', e);
   }
+  databaseUrl = `file:${tmpDbPath}`;
+  process.env.DATABASE_URL = databaseUrl;
+} else if (!databaseUrl) {
+  databaseUrl = 'file:./dev.db';
 }
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };

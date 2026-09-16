@@ -1,7 +1,8 @@
-import { getEventsForWeek, deleteEvent, acceptEvent } from '@/lib/actions';
+import { getEventsForWeek, deleteEvent, getKolkataNow } from '@/lib/actions';
 import { format, addDays } from 'date-fns';
-import { Clock, MapPin, Trash2, Check, X, Bell, AlertCircle } from 'lucide-react';
+import { Clock, MapPin, Trash2, X, Bell } from 'lucide-react';
 import { formatTime12h } from '@/lib/time';
+import AcceptEventButton from '@/components/AcceptEventButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +11,8 @@ export default async function TimetablePage({
 }: {
   searchParams: { date?: string };
 }) {
-  const currentDate = (await searchParams).date || format(new Date(), 'yyyy-MM-dd');
+  const now = await getKolkataNow();
+  const currentDate = (await searchParams).date || format(now, 'yyyy-MM-dd');
   const { recurringEvents, oneTimeEvents, weekStart } = await getEventsForWeek(currentDate);
 
   // Generate the 6 days of the week (Monday to Saturday)
@@ -78,7 +80,7 @@ export default async function TimetablePage({
             Previous
           </a>
           <a
-            href={`/?date=${format(new Date(), 'yyyy-MM-dd')}`}
+            href={`/?date=${format(now, 'yyyy-MM-dd')}`}
             className="px-3 py-1.5 text-sm font-medium text-blue-400 bg-blue-950/50 border border-blue-800 rounded-lg hover:bg-blue-900/50 transition-colors"
           >
             Today
@@ -159,18 +161,12 @@ export default async function TimetablePage({
                               {/* Action Buttons: If Pending, show Accept + Delete. If Confirmed, show Delete */}
                               <div className="flex items-center space-x-1 shrink-0">
                                 {isPending && (
-                                  <form action={async () => {
-                                    'use server';
-                                    await acceptEvent(event.id);
-                                  }}>
-                                    <button
-                                      type="submit"
-                                      title="Accept Event (Turns Green)"
-                                      className="p-1 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-sm"
-                                    >
-                                      <Check className="h-3 w-3 stroke-[3]" />
-                                    </button>
-                                  </form>
+                                  <AcceptEventButton
+                                    eventId={event.id}
+                                    eventName={event.name}
+                                    eventTime={`${formatTime12h(event.startTime)} - ${formatTime12h(event.endTime)}`}
+                                    eventRoom={isSeminar1 ? 'Seminar 1' : 'Seminar 2'}
+                                  />
                                 )}
 
                                 <form action={async () => {

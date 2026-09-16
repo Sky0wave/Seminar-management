@@ -2,26 +2,44 @@
 
 import { prisma } from './prisma';
 import { revalidatePath } from 'next/cache';
-import { parse, getDay, format, startOfWeek, endOfWeek, addDays, isSameDay } from 'date-fns';
+import { parse, getDay, format, startOfWeek, addDays } from 'date-fns';
+
+// Helper to get current Date in Asia/Kolkata (IST, UTC+5:30)
+export async function getKolkataNow() {
+  const now = new Date();
+  const kolkataStr = now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+  return new Date(kolkataStr);
+}
+
+function safeRevalidate(path: string) {
+  try {
+    revalidatePath(path);
+  } catch {
+    // Safe fallback when executed outside of an active HTTP render context
+  }
+}
 
 export async function getEventsForWeek(dateStr: string) {
   // dateStr is 'YYYY-MM-DD'
   const date = parse(dateStr, 'yyyy-MM-dd', new Date());
   
-  // startOfWeek in date-fns defaults to Sunday, but we can make it Monday if we want.
-  // Hospital week: Monday to Saturday. Let's use Monday as start.
+  // Hospital week: Monday to Saturday.
   const weekStart = startOfWeek(date, { weekStartsOn: 1 });
   const weekEnd = addDays(weekStart, 5); // Saturday
 
-  // Fetch all recurring events
+  // Fetch all recurring events (excluding cancelled)
   const recurringEvents = await prisma.event.findMany({
-    where: { isRecurring: true },
+    where: { 
+      isRecurring: true,
+      status: { not: 'CANCELLED' }
+    },
   });
 
-  // Fetch one-time events for this week
+  // Fetch one-time events for this week (excluding cancelled)
   const oneTimeEvents = await prisma.event.findMany({
     where: {
       isRecurring: false,
+      status: { not: 'CANCELLED' },
       date: {
         gte: format(weekStart, 'yyyy-MM-dd'),
         lte: format(weekEnd, 'yyyy-MM-dd'),
@@ -51,14 +69,22 @@ export async function checkRoomAvailability(dateStr: string, startTime: string, 
     return { error: 'Working hours are 8:00 AM to 5:00 PM.' };
   }
 
-  // Fetch recurring events for this day of week
+  // Fetch recurring events for this day of week (excluding cancelled)
   const recurring = await prisma.event.findMany({
-    where: { isRecurring: true, dayOfWeek },
+    where: { 
+      isRecurring: true, 
+      dayOfWeek,
+      status: { not: 'CANCELLED' }
+    },
   });
 
-  // Fetch one-time events for this exact date
+  // Fetch one-time events for this exact date (excluding cancelled)
   const oneTime = await prisma.event.findMany({
-    where: { isRecurring: false, date: dateStr },
+    where: { 
+      isRecurring: false, 
+      date: dateStr,
+      status: { not: 'CANCELLED' }
+    },
   });
 
   const allEventsForDay = [...recurring, ...oneTime];
@@ -84,16 +110,18 @@ export async function checkRoomAvailability(dateStr: string, startTime: string, 
   return { status: 'SEMINAR_1', message: 'Seminar 1 is available. Recommended room: Seminar 1.', recommended: 'SEMINAR_1' };
 }
 
-export async function bookEvent(data: { name: string; type: string; date: string; startTime: string; endTime: string; room: string }) {
+export async function bookEvent(data: { 
+  name: string; 
+  type: string; 
+  date: string; 
+  startTime: string; 
+  endTime: string; 
+  room: string;
+  status?: string;
+}) {
   const check = await checkRoomAvailability(data.date, data.startTime, data.endTime);
   if (check.error || check.status === 'REJECT') {
     return { error: check.error || check.message };
-  }
-
-  // Double check the specific room
-  if (check.recommended !== data.room && check.status !== 'SEMINAR_1') {
-    // If they manually forced Seminar 1 but it was occupied
-    // Let's re-verify specific room occupancy just in case, though the front-end shouldn't allow it.
   }
 
   await prisma.event.create({
@@ -105,31 +133,35 @@ export async function bookEvent(data: { name: string; type: string; date: string
       endTime: data.endTime,
       room: data.room,
       isRecurring: false,
-      status: 'PENDING',
+      status: data.status || 'PENDING',
     },
   });
 
-  revalidatePath('/');
-  revalidatePath('/rooms');
-  revalidatePath('/requests');
+  safeRevalidate('/');
+  safeRevalidate('/rooms');
+  safeRevalidate('/requests');
   return { success: true };
 }
 
-export async function acceptEvent(id: string) {
+export async function acceptEvent(id: string, verificationPassword?: string) {
+  if (verificationPassword !== 'med@1234') {
+    return { error: 'Incorrect verification password. Action denied.' };
+  }
   await prisma.event.update({
     where: { id },
     data: { status: 'CONFIRMED' },
   });
-  revalidatePath('/');
-  revalidatePath('/rooms');
-  revalidatePath('/requests');
+  safeRevalidate('/');
+  safeRevalidate('/rooms');
+  safeRevalidate('/requests');
+  return { success: true };
 }
 
 export async function deleteEvent(id: string) {
   await prisma.event.delete({ where: { id } });
-  revalidatePath('/');
-  revalidatePath('/rooms');
-  revalidatePath('/requests');
+  safeRevalidate('/');
+  safeRevalidate('/rooms');
+  safeRevalidate('/requests');
 }
 
 export async function getPendingEvents() {
@@ -137,4 +169,26 @@ export async function getPendingEvents() {
     where: { status: 'PENDING' },
     orderBy: { createdAt: 'desc' },
   });
+}
+
+export async function createBookingRequest(data: {
+  name: string;
+  requestedDate: string;
+  startTime: string;
+  endTime: string;
+}) {
+  if (data.startTime >= data.endTime) {
+    return { error: 'Start time must be before end time.' };
+  }
+  await prisma.bookingRequest.create({
+    data: {
+      name: data.name,
+      requestedDate: data.requestedDate,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      status: 'PENDING',
+    },
+  });
+  safeRevalidate('/requests');
+  return { success: true };
 }

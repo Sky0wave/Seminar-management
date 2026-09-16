@@ -253,7 +253,14 @@ export default function AddEventPage() {
                   value={formData.startTime}
                   onChange={e => {
                     const newStart = e.target.value;
-                    setFormData(prev => ({ ...prev, startTime: newStart }));
+                    setFormData(prev => {
+                      let newEnd = prev.endTime;
+                      if (newEnd <= newStart) {
+                        const nextSlot = TIME_SLOTS_12H.find(s => s.value > newStart);
+                        if (nextSlot) newEnd = nextSlot.value;
+                      }
+                      return { ...prev, startTime: newStart, endTime: newEnd };
+                    });
                   }}
                   className="w-full px-3 py-2.5 bg-gray-950 border border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white text-sm font-medium"
                 >
