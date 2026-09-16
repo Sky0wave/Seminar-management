@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Calendar, PlusCircle, ListTodo, DoorOpen, LogOut, Bell, ShieldCheck } from 'lucide-react';
 import { logout } from '@/app/login/actions';
+import QRCodeModal from '@/components/QRCodeModal';
 
 const navItems = [
   { name: 'Timetable', href: '/', icon: Calendar },
@@ -80,6 +81,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           <div className="flex items-center space-x-3">
+            <QRCodeModal />
+
             <Link
               href="/"
               title="View Timetable & Approvals"
