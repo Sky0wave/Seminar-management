@@ -12,7 +12,8 @@ export default async function TimetablePage({
   searchParams: { date?: string };
 }) {
   const now = await getKolkataNow();
-  const currentDate = (await searchParams).date || format(now, 'yyyy-MM-dd');
+  const todayDateStr = format(now, 'yyyy-MM-dd');
+  const currentDate = (await searchParams).date || todayDateStr;
   const { recurringEvents, oneTimeEvents, weekStart } = await getEventsForWeek(currentDate);
 
   // Generate the 6 days of the week (Monday to Saturday)
@@ -61,14 +62,18 @@ export default async function TimetablePage({
         </div>
 
         {/* Legend */}
-        <div className="flex items-center space-x-5 text-xs bg-gray-900/90 px-4 py-2 rounded-xl border border-gray-800">
+        <div className="flex flex-wrap items-center gap-4 text-xs bg-gray-900/90 px-4 py-2 rounded-xl border border-gray-800">
           <div className="flex items-center space-x-2">
-            <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span>
-            <span className="text-red-300 font-medium">Pending Approval (Red)</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 ring-2 ring-blue-400/40"></span>
+            <span className="text-blue-300 font-medium">Today's Highlight (Blue)</span>
           </div>
           <div className="flex items-center space-x-2">
-            <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
-            <span className="text-emerald-300 font-medium">Accepted / Confirmed (Green)</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+            <span className="text-red-300 font-medium">Pending (Red)</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            <span className="text-emerald-300 font-medium">Accepted (Green)</span>
           </div>
         </div>
 
@@ -80,7 +85,7 @@ export default async function TimetablePage({
             Previous
           </a>
           <a
-            href={`/?date=${format(now, 'yyyy-MM-dd')}`}
+            href={`/?date=${todayDateStr}`}
             className="px-3 py-1.5 text-sm font-medium text-blue-400 bg-blue-950/50 border border-blue-800 rounded-lg hover:bg-blue-900/50 transition-colors"
           >
             Today
@@ -102,12 +107,33 @@ export default async function TimetablePage({
             <div className="p-4 border-r border-gray-800 flex items-center justify-center">
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Time</span>
             </div>
-            {actualDays.map((day) => (
-              <div key={day.toString()} className="p-4 border-r border-gray-800 last:border-r-0 text-center">
-                <div className="text-sm font-bold text-white">{format(day, 'EEEE')}</div>
-                <div className="text-xs font-medium text-gray-400 mt-0.5">{format(day, 'MMM d')}</div>
-              </div>
-            ))}
+            {actualDays.map((day) => {
+              const isCurrentDay = format(day, 'yyyy-MM-dd') === todayDateStr;
+              return (
+                <div
+                  key={day.toString()}
+                  className={`p-3.5 border-r border-gray-800 last:border-r-0 text-center transition-colors relative ${
+                    isCurrentDay
+                      ? 'bg-blue-950/50 border-b-2 border-b-blue-500 shadow-sm'
+                      : ''
+                  }`}
+                >
+                  <div className="flex items-center justify-center space-x-1.5">
+                    <span className={`text-sm font-bold ${isCurrentDay ? 'text-blue-300' : 'text-white'}`}>
+                      {format(day, 'EEEE')}
+                    </span>
+                    {isCurrentDay && (
+                      <span className="px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider bg-blue-600 text-white rounded-md shadow-sm">
+                        Today
+                      </span>
+                    )}
+                  </div>
+                  <div className={`text-xs mt-0.5 ${isCurrentDay ? 'text-blue-400 font-semibold' : 'text-gray-400'}`}>
+                    {format(day, 'MMM d')}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Time Slots */}
@@ -118,6 +144,7 @@ export default async function TimetablePage({
                   {formatTime12h(time)}
                 </div>
                 {actualDays.map((day, dayIndex) => {
+                  const isCurrentDay = format(day, 'yyyy-MM-dd') === todayDateStr;
                   const dayOfWeek = dayIndex + 1; // 1=Mon, 6=Sat
                   
                   // Find events starting in this hour block
@@ -130,7 +157,12 @@ export default async function TimetablePage({
                   const allBlockEvents = [...dayRecEvents, ...dayOneTimeEvents];
 
                   return (
-                    <div key={`${day}-${time}`} className="border-r border-gray-800 last:border-r-0 p-1.5 relative group space-y-1.5">
+                    <div
+                      key={`${day}-${time}`}
+                      className={`border-r border-gray-800 last:border-r-0 p-1.5 relative group space-y-1.5 transition-colors ${
+                        isCurrentDay ? 'bg-blue-950/25' : ''
+                      }`}
+                    >
                       {allBlockEvents.map((event: any) => {
                         const isPending = event.status === 'PENDING';
                         const isSeminar1 = event.room === 'SEMINAR_1';
@@ -142,6 +174,10 @@ export default async function TimetablePage({
                               isPending
                                 ? 'bg-red-950/60 border-red-700/90 text-red-200'
                                 : 'bg-emerald-950/50 border-emerald-700/80 text-emerald-200'
+                            } ${
+                              isCurrentDay
+                                ? 'ring-2 ring-blue-500/70 shadow-lg shadow-blue-950/40'
+                                : ''
                             }`}
                           >
                             {/* Card Top: Title & Status / Quick Actions */}
@@ -150,12 +186,19 @@ export default async function TimetablePage({
                                 <div className="font-bold text-xs line-clamp-2 leading-tight">
                                   {event.name}
                                 </div>
-                                {isPending && (
-                                  <span className="inline-flex items-center space-x-1 mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-900/80 text-red-200 border border-red-600">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-ping"></span>
-                                    <span>PENDING</span>
-                                  </span>
-                                )}
+                                <div className="flex items-center gap-1 mt-1">
+                                  {isPending && (
+                                    <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-900/80 text-red-200 border border-red-600">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-ping"></span>
+                                      <span>PENDING</span>
+                                    </span>
+                                  )}
+                                  {isCurrentDay && (
+                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-blue-900/80 text-blue-200 border border-blue-600">
+                                      TODAY
+                                    </span>
+                                  )}
+                                </div>
                               </div>
 
                               {/* Action Buttons: If Pending, show Accept + Delete. If Confirmed, show Delete */}
