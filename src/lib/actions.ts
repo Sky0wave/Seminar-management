@@ -105,16 +105,36 @@ export async function bookEvent(data: { name: string; type: string; date: string
       endTime: data.endTime,
       room: data.room,
       isRecurring: false,
+      status: 'PENDING',
     },
   });
 
   revalidatePath('/');
+  revalidatePath('/rooms');
+  revalidatePath('/requests');
   return { success: true };
+}
+
+export async function acceptEvent(id: string) {
+  await prisma.event.update({
+    where: { id },
+    data: { status: 'CONFIRMED' },
+  });
+  revalidatePath('/');
+  revalidatePath('/rooms');
+  revalidatePath('/requests');
 }
 
 export async function deleteEvent(id: string) {
   await prisma.event.delete({ where: { id } });
   revalidatePath('/');
+  revalidatePath('/rooms');
+  revalidatePath('/requests');
 }
 
-// More actions will be added as needed.
+export async function getPendingEvents() {
+  return await prisma.event.findMany({
+    where: { status: 'PENDING' },
+    orderBy: { createdAt: 'desc' },
+  });
+}

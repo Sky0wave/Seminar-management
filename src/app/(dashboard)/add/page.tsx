@@ -91,13 +91,11 @@ export default function AddEventPage() {
       setResult({
         status: 'SUCCESS',
         room: assignedRoom,
-        message: assignedRoom === 'SEMINAR_2'
-          ? 'Seminar 1 was occupied. Automatically assigned to Seminar 2!'
-          : 'Successfully assigned to primary Seminar 1 room.',
+        message: `${assignedRoom === 'SEMINAR_2' ? 'Seminar 1 was occupied. Assigned to Seminar 2.' : 'Assigned to Seminar 1.'} Added in RED on the calendar awaiting approval. Click 'Accept' on the timetable to confirm (turns Green).`,
       });
       setTimeout(() => {
         router.push('/');
-      }, 1600);
+      }, 2000);
     }
     setLoading(false);
   };
